@@ -37,7 +37,7 @@ class PrismaDbAdapter {
 		if (!model) {
 			/* istanbul ignore next */
 			throw new ServiceSchemaError(
-				"Missing `model` definition in schema of service!"
+				"Missing `model` definition in schema of service!",
 			);
 		}
 
@@ -84,18 +84,21 @@ class PrismaDbAdapter {
 	 * @returns {Promise}
 	 */
 	async connect() {
-		return this.db.$connect().then(() => {
-			// eslint-disable-next-line no-prototype-builtins
-			if (!this.db.hasOwnProperty(this.service.schema.model)) {
-				throw new Error(`Incorrect model: ${this.service.schema.model}`);
-			}
+		return this.db
+			.$connect()
+			.then(() => {
+				// eslint-disable-next-line no-prototype-builtins
+				if (!this.db.hasOwnProperty(this.service.schema.model)) {
+					throw new Error(`Incorrect model: ${this.service.schema.model}`);
+				}
 
-			this.model = this.db[this.service.schema.model];
+				this.model = this.db[this.service.schema.model];
 
-			this.service.logger.info("Prisma adapter has connected successfully.");
-		}).catch((e) => {
-			return this.db.$disconnect().finally(() => Promise.reject(e));
-		});
+				this.service.logger.info("Prisma adapter has connected successfully.");
+			})
+			.catch((e) => {
+				return this.db.$disconnect().finally(() => Promise.reject(e));
+			});
 	}
 
 	/**
@@ -152,7 +155,7 @@ class PrismaDbAdapter {
 			where: {
 				id,
 			},
-      include: this.buildInclude(populate),
+			include: this.buildInclude(populate),
 		});
 	}
 
@@ -171,7 +174,7 @@ class PrismaDbAdapter {
 			where: {
 				id: { in: idList },
 			},
-      include: this.buildInclude(populate),
+			include: this.buildInclude(populate),
 		});
 	}
 
@@ -218,7 +221,9 @@ class PrismaDbAdapter {
 	 * @returns {Promise}
 	 */
 	async updateMany(where, data) {
-		return this.model.updateMany({ where, data: data.$set }).then((res) => res.count);
+		return this.model
+			.updateMany({ where, data: data.$set })
+			.then((res) => res.count);
 	}
 
 	/**
@@ -229,7 +234,7 @@ class PrismaDbAdapter {
 	 * @returns {Promise}
 	 */
 	async updateById(id, data) {
-		return this.model.update({ where: { id } , data: data.$set });
+		return this.model.update({ where: { id }, data: data.$set });
 	}
 
 	/**
@@ -300,7 +305,9 @@ class PrismaDbAdapter {
 
 		// Text search
 		if (_.isString(params.search) && !_.isEmpty(params.search)) {
-			const fields = Array.isArray(params.searchFields) ? params.searchFields : [];
+			const fields = Array.isArray(params.searchFields)
+				? params.searchFields
+				: [];
 
 			const searchConditions = fields.map((f) => {
 				return {
@@ -356,16 +363,15 @@ class PrismaDbAdapter {
 		if (_.isString(sort)) sort = sort.split(/[, ]+/);
 
 		if (Array.isArray(sort)) {
-			return sort.map(s => {
+			return sort.map((s) => {
 				if (s.startsWith("-")) {
 					return {
-						[s.slice(1)]: "desc"
-					};
-				} else {
-					return {
-						[s]: "asc",
+						[s.slice(1)]: "desc",
 					};
 				}
+				return {
+					[s]: "asc",
+				};
 			});
 		}
 
@@ -380,28 +386,32 @@ class PrismaDbAdapter {
 		return [];
 	}
 
-  /**
-   * 
-   * @param {Array} populate field(s) to populate
-   * @returns Object for Prisma includes
-   */
-  buildInclude(populate) {
-    if (_.isEmpty(populate)) {
-      return;
-    }
+	/**
+	 *
+	 * @param {Array} populate field(s) to populate
+	 * @returns Object for Prisma includes
+	 */
+	buildInclude(populate) {
+		if (_.isEmpty(populate)) {
+			return;
+		}
 
-    return _.reduce(populate, (acc, curr) => {
-      const [field, ...nestedFields] = curr.split(".");
+		return _.reduce(
+			populate,
+			(acc, curr) => {
+				const [field, ...nestedFields] = curr.split(".");
 
-      if (!nestedFields.length) {
-        acc[field] = true;
-      } else {
-        acc[field] = { include: this.buildInclude([nestedFields.join(".")]) };
-      }
+				if (!nestedFields.length) {
+					acc[field] = true;
+				} else {
+					acc[field] = { include: this.buildInclude([nestedFields.join(".")]) };
+				}
 
-      return acc;
-    }, {});
-  }
+				return acc;
+			},
+			{},
+		);
+	}
 
 	/**
 	 * For compatibility only.
